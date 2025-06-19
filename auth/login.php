@@ -17,7 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (password_verify($password, $user['password'])) {
       $_SESSION['user_id'] = $user['id'];
       $_SESSION['role'] = $user['role'];
-      header("Location: ../" . $user['role'] . "/dashboard.php");
+      if ($user['role'] === 'admin') {
+          header("Location: ../admin/panel.php");
+      } else {
+          header("Location: ../" . $user['role'] . "/dashboard.php");
+      }
       exit;
     } else {
       $message = "Incorrect password.";

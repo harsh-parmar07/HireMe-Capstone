@@ -3,7 +3,7 @@ CREATE TABLE users (
   name VARCHAR(100),
   email VARCHAR(100),
   password VARCHAR(255),
-  role ENUM('client', 'freelancer')
+  role ENUM('client', 'freelancer', 'admin')
 );
 
 CREATE TABLE jobs (

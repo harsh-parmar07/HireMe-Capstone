@@ -21,6 +21,7 @@ if ($result->num_rows === 0) {
 }
 
 $job = $result->fetch_assoc();
+$bids = $conn->query("SELECT p.*, u.name FROM proposals p JOIN users u ON p.freelancer_id = u.id WHERE job_id = $job_id")->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -36,7 +37,27 @@ $job = $result->fetch_assoc();
   <p><strong>Deadline:</strong> <?= $job['deadline'] ?></p>
   <p><strong>Description:</strong><br><?= nl2br(htmlspecialchars($job['description'])) ?></p>
   <p><strong>Status:</strong> <?= ucfirst($job['status']) ?></p>
-  <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+
+  <h4 class="mt-4">Freelancer Bids</h4>
+  <?php if (count($bids) === 0): ?>
+    <p>No bids yet.</p>
+  <?php else: ?>
+    <table class="table table-bordered">
+      <thead><tr><th>Name</th><th>Bid Amount</th><th>Proposal</th><th>Status</th></tr></thead>
+      <tbody>
+        <?php foreach ($bids as $bid): ?>
+          <tr>
+            <td><?= htmlspecialchars($bid['name']) ?></td>
+            <td>$<?= $bid['bid_amount'] ?></td>
+            <td><?= htmlspecialchars($bid['proposal_text']) ?></td>
+            <td><?= ucfirst($bid['status']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  <?php endif; ?>
+
+  <a href="dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </div>
 </body>
 </html>

@@ -28,3 +28,16 @@ CREATE TABLE messages (
   FOREIGN KEY (sender_id) REFERENCES users(id),
   FOREIGN KEY (receiver_id) REFERENCES users(id)
 );
+
+CREATE TABLE ratings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id INT,
+  client_id INT,
+  freelancer_id INT,
+  stars INT CHECK(stars BETWEEN 1 AND 5),
+  comment TEXT,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (job_id) REFERENCES jobs(id),
+  FOREIGN KEY (client_id) REFERENCES users(id),
+  FOREIGN KEY (freelancer_id) REFERENCES users(id)
+);

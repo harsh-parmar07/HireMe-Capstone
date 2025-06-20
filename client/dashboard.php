@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $message = "Job posted successfully!";
 }
 
-$jobs = $conn->query("SELECT * FROM jobs WHERE client_id = $client_id ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
+$jobs = $conn->query("SELECT * FROM jobs WHERE client_id = $client_id AND status != 'completed' ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>

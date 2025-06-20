@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'client') {
 $job_id = $_GET['id'];
 $client_id = $_SESSION['user_id'];
 
+// Accept/reject bids
 if (isset($_GET['action'], $_GET['bid_id'])) {
   $action = $_GET['action'];
   $bid_id = $_GET['bid_id'];
@@ -22,22 +23,37 @@ if (isset($_GET['action'], $_GET['bid_id'])) {
   }
 }
 
+// Mark job as completed
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_complete'])) {
   $conn->query("UPDATE jobs SET status='completed' WHERE id=$job_id AND client_id=$client_id");
 }
 
+// Handle rating
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_rating'])) {
+  $stars = $_POST['stars'];
+  $comment = $_POST['comment'];
+  $freelancer_id = $_POST['freelancer_id'];
+  $stmt = $conn->prepare("INSERT INTO ratings (job_id, client_id, freelancer_id, stars, comment) VALUES (?, ?, ?, ?, ?)");
+  $stmt->bind_param("iiiis", $job_id, $client_id, $freelancer_id, $stars, $comment);
+  $stmt->execute();
+}
+
+// Get job
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND client_id = ?");
 $stmt->bind_param("ii", $job_id, $client_id);
 $stmt->execute();
 $result = $stmt->get_result();
-
 if ($result->num_rows === 0) {
   echo "Job not found or unauthorized.";
   exit;
 }
+$job = $result->fetch_assoc();
 
-$job = $result->fetch_assoc(); // must fetch after update too
+// Get bids
 $bids = $conn->query("SELECT p.*, u.name, u.id AS freelancer_id FROM proposals p JOIN users u ON p.freelancer_id = u.id WHERE job_id = $job_id")->fetch_all(MYSQLI_ASSOC);
+
+// Check for existing rating
+$checkRating = $conn->query("SELECT * FROM ratings WHERE job_id = $job_id AND client_id = $client_id");
 ?>
 
 <!DOCTYPE html>
@@ -57,6 +73,22 @@ $bids = $conn->query("SELECT p.*, u.name, u.id AS freelancer_id FROM proposals p
   <?php if ($job['status'] === 'in progress'): ?>
     <form method="post" class="mb-4">
       <button name="mark_complete" class="btn btn-warning">Mark Job as Completed</button>
+    </form>
+  <?php endif; ?>
+
+  <?php if ($job['status'] === 'completed' && $checkRating->num_rows === 0): ?>
+    <h5 class="mt-4">Rate Your Freelancer</h5>
+    <form method="post" class="mb-4">
+      <div class="mb-2">
+        <label>Stars (1–5):</label>
+        <input type="number" name="stars" class="form-control" min="1" max="5" required>
+      </div>
+      <div class="mb-2">
+        <label>Comment (optional):</label>
+        <textarea name="comment" class="form-control"></textarea>
+      </div>
+      <input type="hidden" name="freelancer_id" value="<?= $bids[0]['freelancer_id'] ?>">
+      <button name="submit_rating" class="btn btn-success">Submit Rating</button>
     </form>
   <?php endif; ?>
 

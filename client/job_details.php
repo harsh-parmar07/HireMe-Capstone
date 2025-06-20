@@ -10,13 +10,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'client') {
 $job_id = $_GET['id'];
 $client_id = $_SESSION['user_id'];
 
-if (isset($_GET['action']) && isset($_GET['bid_id'])) {
+if (isset($_GET['action'], $_GET['bid_id'])) {
   $action = $_GET['action'];
   $bid_id = $_GET['bid_id'];
   if (in_array($action, ['accept', 'reject'])) {
     $status = $action === 'accept' ? 'accepted' : 'rejected';
     $conn->query("UPDATE proposals SET status='$status' WHERE id=$bid_id AND job_id=$job_id");
+    if ($status === 'accepted') {
+      $conn->query("UPDATE jobs SET status='in progress' WHERE id=$job_id");
+    }
   }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_complete'])) {
+  $conn->query("UPDATE jobs SET status='completed' WHERE id=$job_id AND client_id=$client_id");
 }
 
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND client_id = ?");
@@ -29,8 +36,8 @@ if ($result->num_rows === 0) {
   exit;
 }
 
-$job = $result->fetch_assoc();
-$bids = $conn->query("SELECT p.*, u.name FROM proposals p JOIN users u ON p.freelancer_id = u.id WHERE job_id = $job_id")->fetch_all(MYSQLI_ASSOC);
+$job = $result->fetch_assoc(); // must fetch after update too
+$bids = $conn->query("SELECT p.*, u.name, u.id AS freelancer_id FROM proposals p JOIN users u ON p.freelancer_id = u.id WHERE job_id = $job_id")->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -47,32 +54,36 @@ $bids = $conn->query("SELECT p.*, u.name FROM proposals p JOIN users u ON p.free
   <p><strong>Description:</strong><br><?= nl2br(htmlspecialchars($job['description'])) ?></p>
   <p><strong>Status:</strong> <?= ucfirst($job['status']) ?></p>
 
-  <h4 class="mt-4">Freelancer Bids</h4>
-  <?php if (count($bids) === 0): ?>
-    <p>No bids yet.</p>
-  <?php else: ?>
-    <table class="table table-bordered">
-      <thead><tr><th>Name</th><th>Bid Amount</th><th>Proposal</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>
-        <?php foreach ($bids as $bid): ?>
-          <tr>
-            <td><?= htmlspecialchars($bid['name']) ?></td>
-            <td>$<?= $bid['bid_amount'] ?></td>
-            <td><?= htmlspecialchars($bid['proposal_text']) ?></td>
-            <td><?= ucfirst($bid['status']) ?></td>
-            <td>
-              <?php if ($bid['status'] === 'pending'): ?>
-                <a href="?id=<?= $job_id ?>&action=accept&bid_id=<?= $bid['id'] ?>" class="btn btn-success btn-sm">Accept</a>
-                <a href="?id=<?= $job_id ?>&action=reject&bid_id=<?= $bid['id'] ?>" class="btn btn-danger btn-sm">Reject</a>
-              <?php else: ?>
-                <span class="text-muted">No actions</span>
-              <?php endif; ?>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
+  <?php if ($job['status'] === 'in progress'): ?>
+    <form method="post" class="mb-4">
+      <button name="mark_complete" class="btn btn-warning">Mark Job as Completed</button>
+    </form>
   <?php endif; ?>
+
+  <h4 class="mt-4">Freelancer Bids</h4>
+  <table class="table table-bordered">
+    <thead><tr><th>Name</th><th>Bid</th><th>Proposal</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      <?php foreach ($bids as $bid): ?>
+        <tr>
+          <td><?= htmlspecialchars($bid['name']) ?></td>
+          <td>$<?= $bid['bid_amount'] ?></td>
+          <td><?= htmlspecialchars($bid['proposal_text']) ?></td>
+          <td><?= ucfirst($bid['status']) ?></td>
+          <td>
+            <?php if ($bid['status'] === 'pending'): ?>
+              <a href="?id=<?= $job_id ?>&action=accept&bid_id=<?= $bid['id'] ?>" class="btn btn-success btn-sm">Accept</a>
+              <a href="?id=<?= $job_id ?>&action=reject&bid_id=<?= $bid['id'] ?>" class="btn btn-danger btn-sm">Reject</a>
+            <?php elseif ($bid['status'] === 'accepted'): ?>
+              <a href="messages.php?job_id=<?= $job_id ?>&freelancer_id=<?= $bid['freelancer_id'] ?>" class="btn btn-primary btn-sm">Message</a>
+            <?php else: ?>
+              <span class="text-muted">No actions</span>
+            <?php endif; ?>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 
   <a href="dashboard.php" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </div>
